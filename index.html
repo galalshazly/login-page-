@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام تحميل الملفات من OneDrive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #f5f7fa;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+        }
+        
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
+        }
+        
+        .file-item {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        
+        .file-item:hover {
+            transform: translateX(-5px);
+            border-left-color: #3b82f6;
+            background-color: #f8fafc;
+        }
+        
+        .loader {
+            border-top-color: #3b82f6;
+            animation: spinner 1.5s linear infinite;
+        }
+        
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- شريط التنقل -->
+    <nav class="gradient-bg text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fab fa-microsoft text-2xl"></i>
+                <h1 class="text-xl font-bold">نظام التحكم في الملفات</h1>
+            </div>
+            <div id="auth-buttons">
+                <button onclick="showLoginForm()" class="bg-white text-blue-600 px-4 py-2 rounded-md hover:bg-gray-100 transition">تسجيل الدخول</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- المحتوى الرئيسي -->
+    <main class="flex-grow container mx-auto p-4 flex flex-col items-center justify-center">
+        <!-- نموذج تسجيل الدخول -->
+        <div id="login-section" class="w-full max-w-md">
+            <div class="bg-white card-shadow rounded-lg p-8">
+                <div class="text-center mb-6">
+                    <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/88dc4375-f771-42dc-903a-cf29f089d2cd.png" alt="شعار نظام التحكم بالملفات - أيقونة زرقاء تمثل السحابة والحوسبة السحابية" class="mx-auto mb-4 rounded-full">
+                    <h2 class="text-2xl font-bold text-gray-800">تسجيل الدخول إلى حسابك</h2>
+                    <p class="text-gray-600 mt-2">الرجاء إدخال بيانات الاعتماد الخاصة بك للوصول إلى الملفات</p>
+                </div>
+                
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label for="email" class="block text-gray-700 mb-2">البريد الإلكتروني</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <input type="email" id="email" class="w-full pr-10 pl-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="example@domain.com" required>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="password" class="block text-gray-700 mb-2">كلمة المرور</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <input type="password" id="password" class="w-full pr-10 pl-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="********" required>
+                            <button type="button" class="absolute left-0 inset-y-0 px-3 text-gray-500 hover:text-gray-700" onclick="togglePasswordVisibility('password')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="remember-me" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded ml-2">
+                            <label for="remember-me" class="text-gray-700">تذكرني</label>
+                        </div>
+                        <a href="#" class="text-blue-600 hover:underline">نسيت كلمة المرور؟</a>
+                    </div>
+                    
+                    <button type="submit" class="w-full btn-primary text-white py-2 px-4 rounded-md font-medium flex items-center justify-center h-11">
+                        <span id="login-text">تسجيل الدخول</span>
+                        <span id="login-spinner" class="hidden ml-2">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </span>
+                    </button>
+                </form>
+                
+                <div id="login-error" class="mt-4 hidden">
+                    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+                        <strong class="font-bold">خطأ!</strong>
+                        <span id="error-message" class="block sm:inline"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- قسم تحميل الملفات (مخفى في البداية) -->
+        <div id="files-section" class="w-full max-w-4xl hidden">
+            <div class="bg-white card-shadow rounded-lg p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">ملفات OneDrive</h2>
+                    <button onclick="showLoginForm()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-sign-out-alt"></i> تغيير الحساب
+                    </button>
+                </div>
+                
+                <div class="flex justify-between items-center mb-6">
+                    <div class="relative flex-grow max-w-md">
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <input type="text" id="search-files" class="w-full pr-10 pl-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="ابحث عن ملفات...">
+                    </div>
+                    <button id="refresh-files" class="ml-4 p-2 rounded-full hover:bg-gray-100" title="تحديث القائمة">
+                        <i class="fas fa-sync-alt text-blue-600"></i>
+                    </button>
+                </div>
+                
+                <!-- حالة التحميل -->
+                <div id="loading-files" class="flex flex-col items-center justify-center py-8">
+                    <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
+                    <p>جاري تحميل الملفات...</p>
+                </div>
+                
+                <!-- قائمة الملفات -->
+                <div id="files-list" class="space-y-2 hidden">
+                    <!-- سيتم ملء الملفات ديناميكيًا هنا -->
+                </div>
+                
+                <!-- حالة عدم وجود ملفات -->
+                <div id="no-files" class="hidden py-8 text-center text-gray-500">
+                    <i class="fas fa-folder-open text-4xl mb-2"></i>
+                    <p>لا توجد ملفات متاحة للتحميل</p>
+                </div>
+                
+                <!-- زر رفع ملف جديد -->
+                <div class="mt-6 text-center">
+                    <button onclick="showUploadDialog()" class="px-4 py-2 border border-dashed border-gray-400 rounded-md text-gray-600 hover:bg-gray-50 transition">
+                        <i class="fas fa-cloud-upload-alt mr-2"></i> رفع ملف جديد إلى OneDrive
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- تذييل الصفحة -->
+    <footer class="gradient-bg text-white p-4 mt-8">
+        <div class="container mx-auto text-center">
+            <p>© 2023 نظام تحميل الملفات من OneDrive. جميع الحقوق محفوظة.</p>
+            <div class="mt-2 flex justify-center space-x-4">
+                <a href="#" class="hover:text-blue-300"><i class="fab fa-microsoft"></i></a>
+                <a href="#" class="hover:text-blue-300"><i class="fas fa-question-circle"></i></a>
+                <a href="#" class="hover:text-blue-300"><i class="fas fa-shield-alt"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- حوار رفع الملف -->
+    <div id="upload-dialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800">رفع ملف إلى OneDrive</h3>
+                <button onclick="hideUploadDialog()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="border-2 border-dashed border-gray-300 rounded-md p-6 text-center mb-4 cursor-pointer hover:border-blue-400 transition" id="drop-zone">
+                <i class="fas fa-cloud-upload-alt text-4xl text-blue-500 mb-2"></i>
+                <p class="text-gray-600 mb-2">اسحب الملفات هنا أو انقر لتحديدها</p>
+                <p class="text-sm text-gray-500">الحد الأقصى لحجم الملف: 100 ميجابايت</p>
+                <input type="file" id="file-input" class="hidden">
+            </div>
+            
+            <div id="upload-progress" class="mb-4 hidden">
+                <div class="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>جارٍ الرفع...</span>
+                    <span id="upload-percentage">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="upload-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+                <p id="upload-status" class="text-sm text-gray-500 mt-1"></p>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button onclick="hideUploadDialog()" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition">إلغاء</button>
+                <button id="upload-button" onclick="uploadFile()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex items-center">
+                    <span>رفع الملف</span>
+                    <span id="upload-spinner" class="hidden ml-2"><i class="fas fa-spinner fa-spin"></i></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // متغيرات الحالة
+        let isLoggedIn = false;
+        let files = [];
+        
+        // بيانات الاعتماد المسموح بها مع ملفات كل مستخدم
+        const userFileAccess = {
+            'user1@example.com': {
+                password: 'password1',
+                allowedFiles: ['1', '3'] // IDs of files this user can access
+            },
+            'user2@example.com': {
+                password: 'password2',
+                allowedFiles: ['2', '4']
+            },
+            'admin@example.com': {
+                password: 'admin123',
+                allowedFiles: ['1', '2', '3', '4', '5'] // Admin has access to all files
+            }
+        };
+        
+        // عرض نموذج تسجيل الدخول
+        function showLoginForm() {
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('files-section').classList.add('hidden');
+            document.getElementById('login-error').classList.add('hidden');
+            document.getElementById('auth-buttons').innerHTML = `
+                <button onclick="showLoginForm()" class="bg-white text-blue-600 px-4 py-2 rounded-md hover:bg-gray-100 transition">تسجيل الدخول</button>
+            `;
+            isLoggedIn = false;
+        }
+        
+        // تبديل رؤية كلمة المرور
+        function togglePasswordVisibility(id) {
+            const passwordInput = document.getElementById(id);
+            const eyeIcon = passwordInput.nextElementSibling.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+        
+        // تسجيل الدخول
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            // عرض الحالة "جارٍ التحميل"
+            document.getElementById('login-text').classList.add('hidden');
+            document.getElementById('login-spinner').classList.remove('hidden');
+            
+            // محاكاة عملية تسجيل الدخول
+            setTimeout(() => {
+                if (email && password) {
+                    const user = userFileAccess[email];
+                    if (user && user.password === password) {
+                        loginSuccess();
+                    } else {
+                        loginError('بيانات الاعتماد غير صحيحة');
+                    }
+                } else {
+                    loginError('البريد الإلكتروني وكلمة المرور مطلوبان');
+                }
+            }, 1500);
+        });
+        
+        // نجاح تسجيل الدخول
+        function loginSuccess() {
+            isLoggedIn = true;
+            
+            document.getElementById('login-error').classList.add('hidden');
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('files-section').classList.remove('hidden');
+            document.getElementById('auth-buttons').innerHTML = `
+                <button onclick="logout()" class="text-white hover:text-gray-200 px-3 py-1 rounded-md transition">
+                    <i class="fas fa-sign-out-alt mr-1"></i> تسجيل الخروج
+                </button>
+            `;
+            
+            // تحميل الملفات بعد تسجيل الدخول
+            loadFiles();
+        }
+        
+        // خطأ في تسجيل الدخول
+        function loginError(message) {
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('login-error').classList.remove('hidden');
+            document.getElementById('login-text').classList.remove('hidden');
+            document.getElementById('login-spinner').classList.add('hidden');
+        }
+        
+        // تسجيل الخروج
+        function logout() {
+            isLoggedIn = false;
+            showLoginForm();
+        }
+        
+        // تحميل الملفات
+        function loadFiles() {
+            document.getElementById('files-list').classList.add('hidden');
+            document.getElementById('no-files').classList.add('hidden');
+            document.getElementById('loading-files').classList.remove('hidden');
+            
+            // محاكاة جلب الملفات من OneDrive
+            setTimeout(() => {
+                // ملفات وهمية للعرض التوضيحي
+                files = [
+                    { id: '1', name: 'تقرير المبيعات Q4 2023.pdf', type: 'pdf', size: '2.4 MB', date: '10 ديسمبر 2023', thumbnail: 'https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/3ed03cfc-8b20-4b09-bb45-f7ab60cb5a1a.png', link: 'YOUR_ONEDRIVE_LINK_1' },
+                    { id: '2', name: 'عرض تقديمي للمنتج.pptx', type: 'ppt', size: '5.7 MB', date: '5 ديسمبر 2023', thumbnail: 'https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/0aa0ffa2-1227-4bc8-8997-8642d8ec0768.png', link: 'YOUR_ONEDRIVE_LINK_2' },
+                    { id: '3', name: 'قاعدة بيانات العملاء.xlsx', type: 'xls', size: '1.2 MB', date: '1 ديسمبر 2023', thumbnail: 'https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/c2f5ee18-1510-4bbd-b44b-c66b6a61eb6c.png', link: 'YOUR_ONEDRIVE_LINK_3' },
+                    { id: '4', name: 'صورة الملف الشخصي.jpg', type: 'jpg', size: '450 KB', date: '28 نوفمبر 2023', thumbnail: 'https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/99c7005b-8d99-47fb-9484-1de9549186ab.png', link: 'YOUR_ONEDRIVE_LINK_4' },
+                    { id: '5', name: 'ملاحظات الاجتماع.txt', type: 'txt', size: '15 KB', date: '25 نوفمبر 2023', thumbnail: 'https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/19c81d87-6aaf-4bdc-895f-cf10ceb95608.png', link: 'YOUR_ONEDRIVE_LINK_5' }
+                ];
+                
+                renderFiles();
+                
+                document.getElementById('loading-files').classList.add('hidden');
+                document.getElementById('files-list').classList.remove('hidden');
+                
+                if (files.length === 0) {
+                    document.getElementById('no-files').classList.remove('hidden');
+                }
+            }, 2000);
+        }
+        
+        // عرض الملفات
+        function renderFiles() {
+            const filesList = document.getElementById('files-list');
+            filesList.innerHTML = '';
+            
+            const searchTerm = document.getElementById('search-files').value.toLowerCase();
+            
+            const email = document.getElementById('email').value;
+            const user = userFileAccess[email];
+            
+            const filteredFiles = files.filter(file => 
+                file.name.toLowerCase().includes(searchTerm) && 
+                (user && user.allowedFiles.includes(file.id))
+            );
+            
+            if (filteredFiles.length === 0) {
+                document.getElementById('files-list').classList.add('hidden');
+                document.getElementById('no-files').classList.remove('hidden');
+                return;
+            }
+            
+            filteredFiles.forEach(file => {
+                const fileTypeIcon = getFileTypeIcon(file.type);
+                
+                const fileElement = document.createElement('div');
+                fileElement.className = 'file-item bg-white p-4 rounded-md border border-gray-200 flex items-center cursor-pointer hover:shadow-sm';
+                fileElement.innerHTML = `
+                    <div class="flex-shrink-0 w-10 h-10 mr-3 flex items-center justify-center rounded-md bg-gray-100 text-blue-600">
+                        <i class="${fileTypeIcon} text-xl"></i>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-medium text-gray-800">${file.name}</h3>
+                            <span class="text-sm text-gray-500">${file.size}</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">آخر تعديل: ${file.date}</p>
+                    </div>
+                    <div class="flex-shrink-0 ml-4">
+                        <button onclick="downloadFile('${file.id}', event)" class="text-blue-600 hover:text-blue-800 p-2">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                `;
+                
+                filesList.appendChild(fileElement);
+            });
+        }
+        
+        // الحصول على أيقونة نوع الملف
+        function getFileTypeIcon(type) {
+            switch(type) {
+                case 'pdf': return 'fas fa-file-pdf';
+                case 'ppt': case 'pptx': return 'fas fa-file-powerpoint';
+                case 'xls': case 'xlsx': return 'fas fa-file-excel';
+                case 'doc': case 'docx': return 'fas fa-file-word';
+                case 'jpg': case 'png': case 'gif': return 'fas fa-file-image';
+                case 'txt': return 'fas fa-file-alt';
+                case 'zip': case 'rar': return 'fas fa-file-archive';
+                default: return 'fas fa-file';
+            }
+        }
+        
+        // تنزيل الملف
+        function downloadFile(id, event) {
+            event.stopPropagation();
+            
+            const file = files.find(f => f.id === id);
+            if (!file) return;
+            
+            const email = document.getElementById('email').value;
+            
+            if (!isLoggedIn || !email) {
+                alert('يجب تسجيل الدخول أولاً');
+                return;
+            }
+            
+            const user = userFileAccess[email];
+            if (!user || !user.allowedFiles.includes(id)) {
+                alert('ليس لديك إذن للوصول إلى هذا الملف');
+                return;
+            }
+            
+            if (file.link) {
+                window.open(file.link, '_blank');
+            } else {
+                alert('لا يوجد رابط للتحميل متاح حاليًا');
+            }
+        }
+        
+        // عرض حوار رفع الملف
+        function showUploadDialog() {
+            document.getElementById('upload-dialog').classList.remove('hidden');
+        }
+        
+        // إخفاء حوار رفع الملف
+        function hideUploadDialog() {
+            document.getElementById('upload-dialog').classList.add('hidden');
+            document.getElementById('upload-progress').classList.add('hidden');
+            document.getElementById('upload-button').disabled = false;
+            document.getElementById('upload-spinner').classList.add('hidden');
+            document.getElementById('file-input').value = '';
+            document.getElementById('upload-bar').style.width = '0%';
+            document.getElementById('upload-percentage').textContent = '0%';
+        }
+        
+        // رفع الملف
+        function uploadFile() {
+            const email = document.getElementById('email').value;
+            if (!isLoggedIn || !email) {
+                alert('يجب تسجيل الدخول أولاً');
+                return;
+            }
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('الرجاء اختيار ملف أولاً');
+                return;
+            }
+            
+            if (file.size > 100 * 1024 * 1024) { // 100MB
+                alert('حجم الملف يتجاوز الحد الأقصى المسموح به (100 ميجابايت)');
+                return;
+            }
+            
+            document.getElementById('upload-button').disabled = true;
+            document.getElementById('upload-progress').classList.remove('hidden');
+            document.getElementById('upload-spinner').classList.remove('hidden');
+            document.getElementById('upload-status').textContent = `جارٍ رفع ${file.name}...`;
+            
+            // محاكاة عملية الرفع
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    
+                    setTimeout(() => {
+                        document.getElementById('upload-spinner').classList.add('hidden');
+                        document.getElementById('upload-status').textContent = 'تم رفع الملف بنجاح!';
+                        
+                        // إضافة الملف إلى القائمة
+                        const newFile = {
+                            id: Date.now().toString(),
+                            name: file.name,
+                            type: file.name.split('.').pop().toLowerCase(),
+                            size: formatFileSize(file.size),
+                            date: getCurrentDate(),
+                            thumbnail: 'https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/6a13a9cb-1ee0-4580-a1f3-c6bd249264e6.png'
+                        };
+                        
+                        files.unshift(newFile);
+                        renderFiles();
+                        
+                        setTimeout(hideUploadDialog, 1500);
+                    }, 500);
+                }
+                
+                document.getElementById('upload-bar').style.width = `${progress}%`;
+                document.getElementById('upload-percentage').textContent = `${Math.floor(progress)}%`;
+            }, 200);
+            
+            // تفعيل سحب وإفلات الملفات
+            document.getElementById('drop-zone').addEventListener('click', () => {
+                document.getElementById('file-input').click();
+            });
+            
+            document.getElementById('file-input').addEventListener('change', () => {
+                const file = document.getElementById('file-input').files[0];
+                if (file) {
+                    document.getElementById('upload-status').textContent = `تم اختيار الملف: ${file.name}`;
+                }
+            });
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                document.getElementById('drop-zone').addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                document.getElementById('drop-zone').addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                document.getElementById('drop-zone').addEventListener(eventName, unhighlight, false);
+            });
+            
+            function highlight() {
+                document.getElementById('drop-zone').classList.add('border-blue-400', 'bg-blue-50');
+            }
+            
+            function unhighlight() {
+                document.getElementById('drop-zone').classList.remove('border-blue-400', 'bg-blue-50');
+            }
+            
+            document.getElementById('drop-zone').addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const file = dt.files[0];
+                
+                if (file) {
+                    document.getElementById('file-input').files = dt.files;
+                    document.getElementById('upload-status').textContent = `تم اختيار الملف: ${file.name}`;
+                }
+            }
+        }
+        
+        // تحديث القائمة عند البحث
+        document.getElementById('search-files').addEventListener('input', () => {
+            renderFiles();
+        });
+        
+        // تحديث القائمة يدويًا
+        document.getElementById('refresh-files').addEventListener('click', () => {
+            loadFiles();
+        });
+        
+        // تنسيق حجم الملف
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+        
+        // الحصول على التاريخ الحالي
+        function getCurrentDate() {
+            const months = [
+                'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+                'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+            ];
+            
+            const date = new Date();
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            
+            return `${day} ${month} ${year}`;
+        }
+        
+        // تهيئة أحداث DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            // هنا يمكنك إضافة أي كود تهيئة إضافي عند تحميل الصفحة
+        });
+    </script>
+</body>
+</html>
+
